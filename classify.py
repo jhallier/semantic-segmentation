@@ -15,7 +15,10 @@ color = {
 def read_image(image_file, im_size):
     im_height, im_width, channels = im_size
     image = imread(image_file)
-    image = image[:im_height, :im_width, :]
+
+    vertical_start = 169
+    vertical_end = vertical_start + im_height
+    image = image[vertical_start:vertical_end, :im_width, :]
     return image
 
 def restore_image(image_vec, im_size):
@@ -27,7 +30,7 @@ def restore_image(image_vec, im_size):
 model_path = './model/model-10'
 graph_path = './model/model-10.meta'
 
-im_size = (576, 800, 3)
+im_size = (352, 800, 3)
 #images = tf.placeholder(tf.float32, shape=(1, im_size[0], im_size[1], 3))
 
 start_time = time.time()
@@ -50,6 +53,7 @@ with tf.Session() as sess:
         image_file = './Train/CameraRGB/' + str(randnr) + '.png'
         image = read_image(image_file, im_size)
         image_4d = np.expand_dims(image, axis=0)
+        image_4d = (image_4d / 255.0) - 0.5
 
         pred = sess.run(logits, feed_dict={input_image:image_4d, keep_prob:1.0})
         softmax = sess.run(tf.nn.softmax(pred))

@@ -41,6 +41,7 @@ def gen_batch_function(image_folder, label_folder, image_shape):
         image_paths = glob(os.path.join(image_folder, '*.png'))
         label_paths = glob(os.path.join(label_folder, '*.png'))
         im_height, im_width = image_shape
+        mask = mask_hood() # masks out hood pixels as class zero
 
         # Shuffle both image and label files in the same order
         indices = random.sample(range(len(image_paths)), len(image_paths))
@@ -51,17 +52,23 @@ def gen_batch_function(image_folder, label_folder, image_shape):
             #time_start = time.time()
             images = []
             labels = []
+            vertical_start = 169
+            vertical_end = vertical_start + im_height
             
-            for index, image_file in enumerate(
-                image_paths[batch_i:batch_i+batch_size]):
-
-                label_file = label_paths[index]
+            for image_file, label_file in zip(
+                image_paths[batch_i:batch_i+batch_size], label_paths[batch_i:batch_i+batch_size]):
 
                 # Loads images and resizes them. For labels, only R channel used
                 image = imread(image_file)
-                image = image[:im_height, :im_width, :]
+                image = image[vertical_start:vertical_end, :im_width, :]
+                image = (image / 255.0) - 0.5
                 label = imread(label_file)
-                label = label[:im_height, :im_width, 0]
+                # Labels are stored in the R channel of RGB (channel 0)
+                label = label[:,:,0]
+                # Transforms hood pixels. Before: vehicle (class 2), after: class 0. Mask is 0 for all hood pixels, 1 otherwise
+                label = np.multiply(label, mask)
+                # Crops image below hood and above horizon where all pixels are of class 0 and therefore not of interest. Speeds up training.
+                label = label[vertical_start:vertical_end, :im_width]
 
                 label_shape = label.shape
                 label = (np.array(label)).reshape(-1)
@@ -80,3 +87,16 @@ def gen_batch_function(image_folder, label_folder, image_shape):
 
             yield np.array(images), labels
     return get_batches_fn
+
+def mask_hood():
+    hood_img_path = './Train/CameraSeg/0.png'
+    hood_img = imread(hood_img_path)
+    hood_img = hood_img[:,:,0]
+    
+    # Mask all pixels below y=500 which are vehicles (covers hood of car)
+    mask = hood_img[480:,:] == 10
+    mask = mask * np.ones((120,800))
+    mask = 1 - mask
+    mask = np.concatenate((np.ones((480,800)),mask), axis = 0)
+    mask = mask.astype(int)
+    return mask

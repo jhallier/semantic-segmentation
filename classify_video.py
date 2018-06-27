@@ -10,7 +10,7 @@ file = sys.argv[-1]
 # Settings
 video_method = 'skvideo'
 process_video = 'multiple_frames'
-frozen_graph = './inference/frozen_fcn_vgg16_10e-2048.pb'
+frozen_graph = './inference/frozen.pb'
 vertical_start = 169
 im_height = 352
 im_height_orig = 600
@@ -50,6 +50,7 @@ with tf.Session(graph=G) as sess:
 
     logits, = tf.import_graph_def(graph_def, return_elements=['logits:0'])
     input_image = G.get_tensor_by_name("import/nn_input:0")
+    #input_image = G.get_tensor_by_name("import/image_input:0")
     keep_prob = G.get_tensor_by_name("import/keep_prob:0")
  
 
